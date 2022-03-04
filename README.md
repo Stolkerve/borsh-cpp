@@ -1,8 +1,6 @@
-# Borsh in C++ &emsp; [![C++ 17 Ref badge]][c++ 17] [![License Apache-2.0 badge]][license apache-2.0]
+# Borsh in C++ &emsp; [![C++ 17 Ref badge]][c++ 17]
 
 [borsh]: https://borsh.io
-[license apache-2.0 badge]: https://img.shields.io/badge/license-Apache2.0-blue.svg
-[license apache-2.0]: https://opensource.org/licenses/Apache-2.0
 [c++ 17]: https://en.wikipedia.org/wiki/C%2B%2B17
 [c++ 17 ref badge]: https://img.shields.io/badge/C%2B%2B-17-blue.svg
 
@@ -48,8 +46,6 @@ int main()
 }
 ```
 
-For now only support serialization
-
 ## Types
 
 | Borsh            | C++                        |
@@ -76,3 +72,8 @@ For now only support serialization
 | set              | `Not supported`            |
 | map              | `Not supported`            |
 | structs          | `Not supported`            |
+| enum             | `Not supported`            |
+
+
+## Limitations
+For now only support serialization and not map data from classes or structs
