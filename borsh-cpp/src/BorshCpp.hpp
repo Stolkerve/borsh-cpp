@@ -132,7 +132,7 @@ public:
 	template<typename T>
 	constexpr BorshEncoder& EncodeDynamicArray(const std::vector<T>& vector)
 	{
-		EncodeInteger((uint32_t)m_Buffer.size());
+		EncodeInteger((uint32_t)vector.size());
 		EncodeFixArray(vector.data(), vector.size());
 
 		return *this;

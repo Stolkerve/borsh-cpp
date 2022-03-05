@@ -6,13 +6,20 @@
 int main()
 {
 	auto arr1 = {1, 2};
-	auto arr2 = {3.0, 4.0};
+	float arr2[2] = {3.0, 4.0};
 	auto arr3 = {"1", "2"};
+
+	std::vector<uint8_t> dynamicArray = {
+		34,
+		85,
+		255
+	};
 
 	BorshEncoder encoder;
 	encoder
+		.EncodeDynamicArray(dynamicArray)
 		.EncodeFixArray(arr1)
-		.EncodeFixArray(arr2)
+		.EncodeFixArray(arr2, 2)
 		.EncodeFixArray(arr3)
 		.EncodeInteger(true)
 		.EncodeInteger(false)
