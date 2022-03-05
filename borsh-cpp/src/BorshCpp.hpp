@@ -1,6 +1,8 @@
 #include <vector>
 #include <string>
-#include <cassert>
+#include <assert.h>
+#include <cmath>
+#include <cstring>
 
 namespace BorshCpp
 {
@@ -24,7 +26,7 @@ public:
 	{
 		static_assert(std::is_integral<T>::value, "Integer value only");
 
-		const size_t typeSize = sizeof T;
+		const size_t typeSize = sizeof(T);
 		uint8_t offset = 0;
 
 		for (size_t i = 0; i < typeSize; i++)
@@ -41,12 +43,12 @@ public:
 	{
 		static_assert(std::is_floating_point<T>::value, "Floating point value only");
 
-		assert(!std::isnan(floatingPoint), "NaN value found");
+		assert(!std::isnan(floatingPoint) || "NaN value found");
 
 		// From https://github.com/naphaso/cbor-cpp/blob/master/src/encoder.cpp
 		const void* punny = &floatingPoint;
 
-		for (size_t i = 0; i < sizeof T; i++)
+		for (size_t i = 0; i < sizeof(T); i++)
 		{
 			m_Buffer.push_back(*((uint8_t*)punny + i));
 		}
@@ -121,7 +123,7 @@ public:
 		}
 		else
 		{
-			assert(false, "The type of the array is not supported");
+			assert(false || "The type of the array is not supported");
 		}
 
 		return *this;

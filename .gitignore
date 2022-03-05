@@ -4,3 +4,5 @@
 **/x84
 **/*.vcxproj.*
 **/*.vcxproj
+
+/*.o
