@@ -1,10 +1,15 @@
 #include <vector>
 #include <string>
+#include <list>
+#include <unordered_map>
+#include <map>
+#include <set>
 #include <assert.h>
 #include <cmath>
 #include <cstring>
+#include <type_traits>
 
-namespace BorshCpp
+namespace BorshCppInternals
 {
 	template <typename T>
 	struct is_string
@@ -17,12 +22,80 @@ namespace BorshCpp
 	{
 		static const bool value = true;
 	};
+
+	template <class T>
+	struct is_container
+	{
+		static const bool value = false;
+	};
+
+	template <class T, class Alloc>
+	struct is_container<std::vector<T, Alloc>>
+	{
+		static const bool value = true;
+	};
+
+	template <class T, class Alloc>
+	struct is_container<std::list<T, Alloc>>
+	{
+		static const bool value = true;
+	};
+
+	template <class T, class Alloc>
+	struct is_container<std::map<T, Alloc>>
+	{
+		static const bool value = true;
+	};
+
+	template <class T, class Alloc>
+	struct is_container<std::unordered_map<T, Alloc>>
+	{
+		static const bool value = true;
+	};
+
+	template <class T, class Alloc>
+	struct is_container<std::set<T, Alloc>>
+	{
+		static const bool value = true;
+	};
+
+	template <class T>
+	struct is_stdarray
+	{
+		static const bool value = false;
+	};
+
+	template <class T, std::size_t N>
+	struct is_stdarray<std::array<T, N>>
+	{
+		static const bool value = true;
+	};
+
+	template <class T>
+	struct is_map
+	{
+		static const bool value = false;
+	};
+
+	template <class T, class Alloc>
+	struct is_map<std::map<T, Alloc>>
+	{
+		static const bool value = true;
+	};
+
+	template <class T, class Alloc>
+	struct is_map<std::unordered_map<T, Alloc>>
+	{
+		static const bool value = true;
+	};
+
 }
 
-class BorshEncoder {
+class BorshEncoder
+{
 public:
-	template<typename T>
-	constexpr BorshEncoder& EncodeInteger(const T integer)
+	template <typename T>
+	constexpr BorshEncoder &EncodeInteger(const T integer)
 	{
 		static_assert(std::is_integral<T>::value, "Integer value only");
 
@@ -38,25 +111,25 @@ public:
 		return *this;
 	}
 
-	template<typename T>
-	constexpr BorshEncoder& EncodeFloatingPoint(const T floatingPoint)
+	template <typename T>
+	constexpr BorshEncoder &EncodeFloatingPoint(const T floatingPoint)
 	{
 		static_assert(std::is_floating_point<T>::value, "Floating point value only");
 
 		assert(!std::isnan(floatingPoint) || "NaN value found");
 
 		// From https://github.com/naphaso/cbor-cpp/blob/master/src/encoder.cpp
-		const void* punny = &floatingPoint;
+		const void *punny = &floatingPoint;
 
 		for (size_t i = 0; i < sizeof(T); i++)
 		{
-			m_Buffer.push_back(*((uint8_t*)punny + i));
+			m_Buffer.push_back(*((uint8_t *)punny + i));
 		}
 
 		return *this;
 	}
 
-	BorshEncoder& EncodeString(const std::string& str)
+	BorshEncoder &EncodeString(const std::string &str)
 	{
 		// Write the size of the string as an u32 integer
 		EncodeInteger(static_cast<uint32_t>(str.size()));
@@ -65,30 +138,34 @@ public:
 
 		return *this;
 	}
-	
 
-	BorshEncoder& EncodeString(const char* str)
+	BorshEncoder &EncodeString(const char *str)
 	{
 		const uint32_t size = std::strlen(str);
 		// Write the size of the string as an u32 integer
 		EncodeInteger(size);
 
-		auto bytes = reinterpret_cast<const uint8_t*>(str);
+		auto bytes = reinterpret_cast<const uint8_t *>(str);
 
 		m_Buffer.insert(m_Buffer.begin() + m_Buffer.size(), bytes, bytes + size);
 
 		return *this;
 	}
 
-	template<typename T>
-	constexpr BorshEncoder& EncodeFixArray(const std::initializer_list<T>& initList)
+	template <typename T>
+	constexpr BorshEncoder &EncodeFixArray(const std::initializer_list<T> &initList)
 	{
 		return EncodeFixArray<T>(initList.begin(), initList.size());
 	}
 
-	template<typename T>
-	constexpr BorshEncoder& EncodeFixArray(const T* array, size_t size)
+	template <typename T>
+	constexpr BorshEncoder &EncodeFixArray(const T *array, size_t size)
 	{
+		if (std::is_array<T>::value)
+		{
+			printf("Es array");
+		}
+
 		if constexpr (std::is_integral<T>::value)
 		{
 			for (size_t i = 0; i < size; ++i)
@@ -105,7 +182,7 @@ public:
 				++array;
 			}
 		}
-		else if constexpr  (BorshCpp::is_string<T>::value)
+		else if constexpr (BorshCppInternals::is_string<T>::value)
 		{
 			for (size_t i = 0; i < size; ++i)
 			{
@@ -113,7 +190,7 @@ public:
 				++array;
 			}
 		}
-		else if constexpr  (std::is_same<const char*, T>::value)
+		else if constexpr (std::is_same<const char *, T>::value)
 		{
 			for (size_t i = 0; i < size; ++i)
 			{
@@ -129,8 +206,8 @@ public:
 		return *this;
 	}
 
-	template<typename T>
-	constexpr BorshEncoder& EncodeDynamicArray(const std::vector<T>& vector)
+	template <typename T>
+	constexpr BorshEncoder &EncodeDynamicArray(const std::vector<T> &vector)
 	{
 		EncodeInteger((uint32_t)vector.size());
 		EncodeFixArray(vector.data(), vector.size());
@@ -138,11 +215,17 @@ public:
 		return *this;
 	}
 
-	const std::vector<uint8_t>& GetBuffer() const
+	const std::vector<uint8_t> &GetBuffer() const
 	{
 		return m_Buffer;
 	}
 
 private:
 	std::vector<uint8_t> m_Buffer;
+};
+
+class BorshDecoder
+{
+public:
+private:
 };

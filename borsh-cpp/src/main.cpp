@@ -5,7 +5,7 @@
 
 int main()
 {
-	auto arr1 = {1, 2};
+	uint32_t arr1[2] = {1, 2};
 	float arr2[2] = {3.0, 4.0};
 	auto arr3 = {"1", "2"};
 
@@ -17,20 +17,20 @@ int main()
 
 	BorshEncoder encoder;
 	encoder
-		.EncodeDynamicArray(dynamicArray)
-		.EncodeFixArray(arr1)
-		.EncodeFixArray(arr2, 2)
-		.EncodeFixArray(arr3)
-		.EncodeInteger(true)
-		.EncodeInteger(false)
-		.EncodeInteger((uint8_t)0xff)
-		.EncodeInteger((uint16_t)0xffff)
-		.EncodeInteger((uint32_t)0xfffffff)
-		.EncodeInteger((uint64_t)0xffffffffffffffff)
-		.EncodeInteger((int8_t)0x7d)
-		.EncodeInteger((int16_t)0x7fff)
-		.EncodeInteger((int32_t)0x7ffffff)
-		.EncodeInteger((int64_t)0x7fffffffffffffff)
+		// .EncodeDynamicArray(dynamicArray)
+		// .EncodeFixArray(arr1, 2)
+		// .EncodeFixArray(arr2, 2)
+		// .EncodeFixArray(arr3)
+		// .EncodeInteger(true)
+		// .EncodeInteger(false)
+		// .EncodeInteger((uint8_t)0xff)
+		// .EncodeInteger((uint16_t)0xffff)
+		// .EncodeInteger((uint32_t)0xfffffff)
+		// .EncodeInteger((uint64_t)0xffffffffffffffff)
+		// .EncodeInteger((int8_t)0x7d)
+		// .EncodeInteger((int16_t)0x7fff)
+		// .EncodeInteger((int32_t)0x7ffffff)
+		// .EncodeInteger((int64_t)0x7fffffffffffffff)
 		.EncodeString("Hola mundo!!!") // suppport ascii
 		.EncodeString(u8"Hola mundo!!!🤓"); // and utf8 only as literals!!!!!
 
@@ -38,4 +38,5 @@ int main()
 	{
 		printf("%d ", c);
 	}
+	printf("\n");
 }
