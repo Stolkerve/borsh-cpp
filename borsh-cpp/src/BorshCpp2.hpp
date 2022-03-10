@@ -25,112 +25,69 @@
 
 namespace borshcpp
 {
-  enum class UnpackerError
-  {
-    OutOfRange = 1
-  };
-
-  struct UnpackerErrCategory : public std::error_category
-  {
-  public:
-    const char *name() const noexcept override
-    {
-      return "unpacker";
-    };
-
-    std::string message(int ev) const override
-    {
-      switch (static_cast<borshcpp::UnpackerError>(ev))
-      {
-      case borshcpp::UnpackerError::OutOfRange:
-        return "tried to dereference out of range during deserialization";
-      default:
-        return "(unrecognized error)";
-      }
-    };
-  };
-
-  const UnpackerErrCategory theUnpackerErrCategory{};
-
-  inline std::error_code make_error_code(borshcpp::UnpackerError e)
-  {
-    return {static_cast<int>(e), theUnpackerErrCategory};
-  }
-}
-
-namespace std
-{
-  template <>
-  struct is_error_code_enum<borshcpp::UnpackerError> : public true_type
-  {
-  };
-}
-
-namespace borshcpp
-{
 
   template <class T>
-  struct is_container
+  struct IsContainer
   {
     static const bool value = false;
   };
 
   template <class T, class Alloc>
-  struct is_container<std::vector<T, Alloc>>
+  struct IsContainer<std::vector<T, Alloc>>
   {
     static const bool value = true;
   };
 
   template <class T, class Alloc>
-  struct is_container<std::list<T, Alloc>>
+  struct IsContainer<std::list<T, Alloc>>
   {
     static const bool value = true;
   };
 
   template <class T, class Alloc>
-  struct is_container<std::map<T, Alloc>>
+  struct IsContainer<std::map<T, Alloc>>
   {
     static const bool value = true;
   };
 
   template <class T, class Alloc>
-  struct is_container<std::unordered_map<T, Alloc>>
+  struct IsContainer<std::unordered_map<T, Alloc>>
   {
     static const bool value = true;
   };
 
   template <class T, class Alloc>
-  struct is_container<std::set<T, Alloc>>
+  struct IsContainer<std::set<T, Alloc>>
   {
     static const bool value = true;
   };
 
   template <class T>
-  struct is_stdarray
+  struct IsStdArray
   {
     static const bool value = false;
   };
 
   template <class T, std::size_t N>
-  struct is_stdarray<std::array<T, N>>
+  struct IsStdArray<std::array<T, N>>
   {
     static const bool value = true;
   };
 
   template <class T>
-  struct is_map
+  struct IsMap
   {
     static const bool value = false;
   };
 
   template <class T, class Alloc>
-  struct is_map<std::map<T, Alloc>>
+  struct IsMap<std::map<T, Alloc>>
   {
     static const bool value = true;
   };
 
   template <class T, class Alloc>
-  struct is_map<std::unordered_map<T, Alloc>>
+  struct IsMap<std::unordered_map<T, Alloc>>
   {
     static const bool value = true;
   };
@@ -141,125 +98,80 @@ namespace borshcpp
     template <class... Types>
     void operator()(const Types &...args)
     {
-      (pack_type(std::forward<const Types &>(args)), ...);
+      (PackType(std::forward<const Types &>(args)), ...);
     }
 
     template <class... Types>
     void process(const Types &...args)
     {
-      (pack_type(std::forward<const Types &>(args)), ...);
+      (PackType(std::forward<const Types &>(args)), ...);
     }
 
-    const std::vector<uint8_t> &vector() const
+    const std::vector<uint8_t> &GetBuffer() const
     {
-      return serialized_object;
+      return m_Buffer;
     }
 
-    void clear()
+    void Clear()
     {
-      serialized_object.clear();
+      m_Buffer.clear();
     }
 
   private:
-    std::vector<uint8_t> serialized_object;
+    std::vector<uint8_t> m_Buffer;
 
     template <class T>
-    void pack_type(const T &value)
+    void PackType(const T &value)
     {
-      if constexpr (is_map<T>::value)
+      if constexpr (IsMap<T>::value)
       {
-        pack_map(value);
+        PackMap(value);
       }
-      else if constexpr (is_container<T>::value || is_stdarray<T>::value)
+      else if constexpr (IsContainer<T>::value || IsStdArray<T>::value)
       {
-        pack_array(value);
+        PackArray(value);
       }
       else
       {
         auto recursive_packer = Packer{};
         const_cast<T &>(value).pack(recursive_packer);
-        pack_type(recursive_packer.vector());
+        PackType(recursive_packer.vector());
       }
     }
 
     template <class T>
-    void pack_array(const T &array)
+    void PackArray(const T &array)
     {
-      // if (array.size() < 16) {
-      //   auto size_mask = uint8_t(0b10010000);
-      //   serialized_object.emplace_back(uint8_t(array.size() | size_mask));
-      // } else if (array.size() < std::numeric_limits<uint16_t>::max()) {
-      //   serialized_object.emplace_back(array16);
-      //   for (auto i = sizeof(uint16_t); i > 0; --i) {
-      //     serialized_object.emplace_back(uint8_t(array.size() >> (8U * (i - 1)) & 0xff));
-      //   }
-      // } else if (array.size() < std::numeric_limits<uint32_t>::max()) {
-      //   serialized_object.emplace_back(array32);
-      //   for (auto i = sizeof(uint32_t); i > 0; --i) {
-      //     serialized_object.emplace_back(uint8_t(array.size() >> (8U * (i - 1)) & 0xff));
-      //   }
-      // } else {
-      //   return; // Give up if string is too long
-      // }
-      // for (const auto &elem : array) {
-      //   pack_type(elem);
-      // }
     }
 
     template <class T>
-    void pack_map(const T &map)
+    void PackMap(const T &map)
     {
-      // if (map.size() < 16) {
-      //   auto size_mask = uint8_t(0b10000000);
-      //   serialized_object.emplace_back(uint8_t(map.size() | size_mask));
-      // } else if (map.size() < std::numeric_limits<uint16_t>::max()) {
-      //   serialized_object.emplace_back(map16);
-      //   for (auto i = sizeof(uint16_t); i > 0; --i) {
-      //     serialized_object.emplace_back(uint8_t(map.size() >> (8U * (i - 1)) & 0xff));
-      //   }
-      // } else if (map.size() < std::numeric_limits<uint32_t>::max()) {
-      //   serialized_object.emplace_back(map32);
-      //   for (auto i = sizeof(uint32_t); i > 0; --i) {
-      //     serialized_object.emplace_back(uint8_t(map.size() >> (8U * (i - 1)) & 0xff));
-      //   }
-      // }
-      // for (const auto &elem : map) {
-      //   pack_type(std::get<0>(elem));
-      //   pack_type(std::get<1>(elem));
-      // }
+    }
+
+    template <class T>
+    void PackInteger(const T &integer)
+    {
+    }
+
+    template <class T>
+    void PackFloatingPoint(const T &integer)
+    {
     }
   };
 
   template <>
-  inline void Packer::pack_type(const std::nullptr_t & /*value*/)
+  inline void Packer::PackType(const std::nullptr_t & /*value*/)
   {
     // serialized_object.emplace_back(nil);
   }
 
   template <>
-  inline void Packer::pack_type(const std::string &value)
+  inline void Packer::PackType(const std::string &value)
   {
-    // if (value.size() < 32) {
-    //   serialized_object.emplace_back(uint8_t(value.size()) | 0b10100000);
-    // } else if (value.size() < std::numeric_limits<uint8_t>::max()) {
-    //   serialized_object.emplace_back(str8);
-    //   serialized_object.emplace_back(uint8_t(value.size()));
-    // } else if (value.size() < std::numeric_limits<uint16_t>::max()) {
-    //   serialized_object.emplace_back(str16);
-    //   for (auto i = sizeof(uint16_t); i > 0; --i) {
-    //     serialized_object.emplace_back(uint8_t(value.size() >> (8U * (i - 1)) & 0xff));
-    //   }
-    // } else if (value.size() < std::numeric_limits<uint32_t>::max()) {
-    //   serialized_object.emplace_back(str32);
-    //   for (auto i = sizeof(uint32_t); i > 0; --i) {
-    //     serialized_object.emplace_back(uint8_t(value.size() >> (8U * (i - 1)) & 0xff));
-    //   }
-    // } else {
-    //   return; // Give up if string is too long
-    // }
     for (char i : value)
     {
-      serialized_object.emplace_back(static_cast<uint8_t>(i));
+      m_Buffer.emplace_back(static_cast<uint8_t>(i));
     }
   }
 
@@ -272,12 +184,12 @@ namespace borshcpp
 
   //   template<class ... Types>
   //   void operator()(Types &... args) {
-  //     (unpack_type(std::forward<Types &>(args)), ...);
+  //     (UnPackType(std::forward<Types &>(args)), ...);
   //   }
 
   //   template<class ... Types>
   //   void process(Types &... args) {
-  //     (unpack_type(std::forward<Types &>(args)), ...);
+  //     (UnPackType(std::forward<Types &>(args)), ...);
   //   }
 
   //   void set_data(const uint8_t *pointer, std::size_t size) {
@@ -307,16 +219,16 @@ namespace borshcpp
   //   }
 
   //   template<class T>
-  //   void unpack_type(T &value) {
-  //     if constexpr(is_map<T>::value) {
+  //   void UnPackType(T &value) {
+  //     if constexpr(IsMap<T>::value) {
   //       unpack_map(value);
-  //     } else if constexpr (is_container<T>::value) {
-  //       unpack_array(value);
-  //     } else if constexpr (is_stdarray<T>::value) {
+  //     } else if constexpr (IsContainer<T>::value) {
+  //       unPackArray(value);
+  //     } else if constexpr (IsStdArray<T>::value) {
   //       unpack_stdarray(value);
   //     } else {
   //       auto recursive_data = std::vector<uint8_t>{};
-  //       unpack_type(recursive_data);
+  //       UnPackType(recursive_data);
 
   //       auto recursive_unpacker = Unpacker{recursive_data.data(), recursive_data.size()};
   //       value.pack(recursive_unpacker);
@@ -325,17 +237,17 @@ namespace borshcpp
   //   }
 
   //   template<class Clock, class Duration>
-  //   void unpack_type(std::chrono::time_point<Clock, Duration> &value) {
+  //   void UnPackType(std::chrono::time_point<Clock, Duration> &value) {
   //     using RepType = typename std::chrono::time_point<Clock, Duration>::rep;
   //     using DurationType = Duration;
   //     using TimepointType = typename std::chrono::time_point<Clock, Duration>;
   //     auto placeholder = RepType{};
-  //     unpack_type(placeholder);
+  //     UnPackType(placeholder);
   //     value = TimepointType(DurationType(placeholder));
   //   }
 
   //   template<class T>
-  //   void unpack_array(T &array) {
+  //   void unPackArray(T &array) {
   //     using ValueType = typename T::value_type;
   //     if (safe_data() == array32) {
   //       safe_increment();
@@ -347,7 +259,7 @@ namespace borshcpp
   //       std::vector<uint32_t> x{};
   //       for (auto i = 0U; i < array_size; ++i) {
   //         ValueType val{};
-  //         unpack_type(val);
+  //         UnPackType(val);
   //         array.emplace_back(val);
   //       }
   //     } else if (safe_data() == array16) {
@@ -359,7 +271,7 @@ namespace borshcpp
   //       }
   //       for (auto i = 0U; i < array_size; ++i) {
   //         ValueType val{};
-  //         unpack_type(val);
+  //         UnPackType(val);
   //         array.emplace_back(val);
   //       }
   //     } else {
@@ -367,7 +279,7 @@ namespace borshcpp
   //       safe_increment();
   //       for (auto i = 0U; i < array_size; ++i) {
   //         ValueType val{};
-  //         unpack_type(val);
+  //         UnPackType(val);
   //         array.emplace_back(val);
   //       }
   //     }
@@ -396,8 +308,8 @@ namespace borshcpp
   //       for (auto i = 0U; i < map_size; ++i) {
   //         KeyType key{};
   //         MappedType value{};
-  //         unpack_type(key);
-  //         unpack_type(value);
+  //         UnPackType(key);
+  //         UnPackType(value);
   //         map.insert_or_assign(key, value);
   //       }
   //     } else if (safe_data() == map16) {
@@ -410,8 +322,8 @@ namespace borshcpp
   //       for (auto i = 0U; i < map_size; ++i) {
   //         KeyType key{};
   //         MappedType value{};
-  //         unpack_type(key);
-  //         unpack_type(value);
+  //         UnPackType(key);
+  //         UnPackType(value);
   //         map.insert_or_assign(key, value);
   //       }
   //     } else {
@@ -420,8 +332,8 @@ namespace borshcpp
   //       for (auto i = 0U; i < map_size; ++i) {
   //         KeyType key{};
   //         MappedType value{};
-  //         unpack_type(key);
-  //         unpack_type(value);
+  //         UnPackType(key);
+  //         UnPackType(value);
   //         map.insert_or_assign(key, value);
   //       }
   //     }
@@ -430,7 +342,7 @@ namespace borshcpp
 
   // template<>
   // inline
-  // void Unpacker::unpack_type(int8_t &value) {
+  // void Unpacker::UnPackType(int8_t &value) {
   //   if (safe_data() == int8) {
   //     safe_increment();
   //     value = safe_data();
@@ -443,7 +355,7 @@ namespace borshcpp
 
   // template<>
   // inline
-  // void Unpacker::unpack_type(int16_t &value) {
+  // void Unpacker::UnPackType(int16_t &value) {
   //   if (safe_data() == int16) {
   //     safe_increment();
   //     std::bitset<16> bits;
@@ -458,7 +370,7 @@ namespace borshcpp
   //     }
   //   } else if (safe_data() == int8) {
   //     int8_t val;
-  //     unpack_type(val);
+  //     UnPackType(val);
   //     value = val;
   //   } else {
   //     value = safe_data();
@@ -468,7 +380,7 @@ namespace borshcpp
 
   // template<>
   // inline
-  // void Unpacker::unpack_type(int32_t &value) {
+  // void Unpacker::UnPackType(int32_t &value) {
   //   if (safe_data() == int32) {
   //     safe_increment();
   //     std::bitset<32> bits;
@@ -483,11 +395,11 @@ namespace borshcpp
   //     }
   //   } else if (safe_data() == int16) {
   //     int16_t val;
-  //     unpack_type(val);
+  //     UnPackType(val);
   //     value = val;
   //   } else if (safe_data() == int8) {
   //     int8_t val;
-  //     unpack_type(val);
+  //     UnPackType(val);
   //     value = val;
   //   } else {
   //     value = safe_data();
@@ -497,7 +409,7 @@ namespace borshcpp
 
   // template<>
   // inline
-  // void Unpacker::unpack_type(int64_t &value) {
+  // void Unpacker::UnPackType(int64_t &value) {
   //   if (safe_data() == int64) {
   //     safe_increment();
   //     std::bitset<64> bits;
@@ -512,15 +424,15 @@ namespace borshcpp
   //     }
   //   } else if (safe_data() == int32) {
   //     int32_t val;
-  //     unpack_type(val);
+  //     UnPackType(val);
   //     value = val;
   //   } else if (safe_data() == int16) {
   //     int16_t val;
-  //     unpack_type(val);
+  //     UnPackType(val);
   //     value = val;
   //   } else if (safe_data() == int8) {
   //     int8_t val;
-  //     unpack_type(val);
+  //     UnPackType(val);
   //     value = val;
   //   } else {
   //     value = safe_data();
@@ -530,7 +442,7 @@ namespace borshcpp
 
   // template<>
   // inline
-  // void Unpacker::unpack_type(uint8_t &value) {
+  // void Unpacker::UnPackType(uint8_t &value) {
   //   if (safe_data() == uint8) {
   //     safe_increment();
   //     value = safe_data();
@@ -543,7 +455,7 @@ namespace borshcpp
 
   // template<>
   // inline
-  // void Unpacker::unpack_type(uint16_t &value) {
+  // void Unpacker::UnPackType(uint16_t &value) {
   //   if (safe_data() == uint16) {
   //     safe_increment();
   //     for (auto i = sizeof(uint16_t); i > 0; --i) {
@@ -562,7 +474,7 @@ namespace borshcpp
 
   // template<>
   // inline
-  // void Unpacker::unpack_type(uint32_t &value) {
+  // void Unpacker::UnPackType(uint32_t &value) {
   //   if (safe_data() == uint32) {
   //     safe_increment();
   //     for (auto i = sizeof(uint32_t); i > 0; --i) {
@@ -587,7 +499,7 @@ namespace borshcpp
 
   // template<>
   // inline
-  // void Unpacker::unpack_type(uint64_t &value) {
+  // void Unpacker::UnPackType(uint64_t &value) {
   //   if (safe_data() == uint64) {
   //     safe_increment();
   //     for (auto i = sizeof(uint64_t); i > 0; --i) {
@@ -619,20 +531,20 @@ namespace borshcpp
 
   // template<>
   // inline
-  // void Unpacker::unpack_type(std::nullptr_t &/*value*/) {
+  // void Unpacker::UnPackType(std::nullptr_t &/*value*/) {
   //   safe_increment();
   // }
 
   // template<>
   // inline
-  // void Unpacker::unpack_type(bool &value) {
+  // void Unpacker::UnPackType(bool &value) {
   //   value = safe_data() != 0xc2;
   //   safe_increment();
   // }
 
   // template<>
   // inline
-  // void Unpacker::unpack_type(float &value) {
+  // void Unpacker::UnPackType(float &value) {
   //   if (safe_data() == float32) {
   //     safe_increment();
   //     uint32_t data = 0;
@@ -659,11 +571,11 @@ namespace borshcpp
   //   } else {
   //     if (safe_data() == int8 || safe_data() == int16 || safe_data() == int32 || safe_data() == int64) {
   //       int64_t val = 0;
-  //       unpack_type(val);
+  //       UnPackType(val);
   //       value = float(val);
   //     } else {
   //       uint64_t val = 0;
-  //       unpack_type(val);
+  //       UnPackType(val);
   //       value = float(val);
   //     }
   //   }
@@ -671,7 +583,7 @@ namespace borshcpp
 
   // template<>
   // inline
-  // void Unpacker::unpack_type(double &value) {
+  // void Unpacker::UnPackType(double &value) {
   //   if (safe_data() == float64) {
   //     safe_increment();
   //     uint64_t data = 0;
@@ -698,11 +610,11 @@ namespace borshcpp
   //   } else {
   //     if (safe_data() == int8 || safe_data() == int16 || safe_data() == int32 || safe_data() == int64) {
   //       int64_t val = 0;
-  //       unpack_type(val);
+  //       UnPackType(val);
   //       value = float(val);
   //     } else {
   //       uint64_t val = 0;
-  //       unpack_type(val);
+  //       UnPackType(val);
   //       value = float(val);
   //     }
   //   }
@@ -710,7 +622,7 @@ namespace borshcpp
 
   // template<>
   // inline
-  // void Unpacker::unpack_type(std::string &value) {
+  // void Unpacker::UnPackType(std::string &value) {
   //   std::size_t str_size = 0;
   //   if (safe_data() == str32) {
   //     safe_increment();
@@ -744,7 +656,7 @@ namespace borshcpp
 
   // template<>
   // inline
-  // void Unpacker::unpack_type(std::vector<uint8_t> &value) {
+  // void Unpacker::UnPackType(std::vector<uint8_t> &value) {
   //   std::size_t bin_size = 0;
   //   if (safe_data() == bin32) {
   //     safe_increment();
