@@ -1,7 +1,20 @@
 ﻿#include <iostream>
 #include <limits>
 
-#include "BorshCpp.hpp"
+// #include "BorshCpp.hpp"
+#include "BorshCpp2.hpp"
+
+struct Person {
+  std::string name;
+  uint16_t age;
+  std::vector<std::vector<std::string>> aliases;
+
+  template<class T>
+  void pack(T &pack) {
+    pack(name, age, aliases);
+  }
+};
+
 
 int main()
 {
@@ -15,8 +28,11 @@ int main()
 		255
 	};
 
-	BorshEncoder encoder;
-	encoder
+	auto person = Person{"John", 22, {{"Ripper", "Silverhand"}, {"Ripper", "Silverhand"}}};
+	auto data = borshcpp::pack(person);
+
+	// BorshEncoder encoder;
+	// encoder
 		// .EncodeDynamicArray(dynamicArray)
 		// .EncodeFixArray(arr1, 2)
 		// .EncodeFixArray(arr2, 2)
@@ -31,12 +47,12 @@ int main()
 		// .EncodeInteger((int16_t)0x7fff)
 		// .EncodeInteger((int32_t)0x7ffffff)
 		// .EncodeInteger((int64_t)0x7fffffffffffffff)
-		.EncodeString("Hola mundo!!!") // suppport ascii
-		.EncodeString(u8"Hola mundo!!!🤓"); // and utf8 only as literals!!!!!
+		// .EncodeString("Hola mundo!!!") // suppport ascii
+		// .EncodeString(u8"Hola mundo!!!🤓"); // and utf8 only as literals!!!!!
 
-	for (auto c : encoder.GetBuffer())
-	{
-		printf("%d ", c);
-	}
+	// for (auto c : encoder.GetBuffer())
+	// {
+	// 	printf("%d ", c);
+	// }
 	printf("\n");
 }
