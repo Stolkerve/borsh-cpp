@@ -1,6 +1,7 @@
 #include <vector>
 #include <string>
 #include <list>
+#include <functional>
 #include <unordered_map>
 #include <map>
 #include <set>
@@ -8,6 +9,7 @@
 #include <cmath>
 #include <cstring>
 #include <type_traits>
+#include <typeinfo>
 
 namespace BorshCppInternals
 {
@@ -94,56 +96,60 @@ namespace BorshCppInternals
 class BorshEncoder
 {
 public:
+	template <typename ... T>
+	constexpr BorshEncoder& Encode(const T& ... types) {
+	    // Encode((types...));
+		(Encode(types), ...);
+		// printf("asd");
+	    return *this;
+	}
+
 	template <typename T>
-	constexpr BorshEncoder &EncodeInteger(const T integer)
+	constexpr BorshEncoder &Encode(const T value)
 	{
-		static_assert(std::is_integral<T>::value, "Integer value only");
-
-		const size_t typeSize = sizeof(T);
-		uint8_t offset = 0;
-
-		for (size_t i = 0; i < typeSize; i++)
+		if constexpr (std::is_integral<T>::value)
 		{
-			m_Buffer.push_back((integer >> offset) & 0xff);
-			offset += 8;
+			const size_t typeSize = sizeof(T);
+			uint8_t offset = 0;
+
+			for (size_t i = 0; i < typeSize; i++)
+			{
+				m_Buffer.push_back((value >> offset) & 0xff);
+				offset += 8;
+			}
+		}
+
+		if constexpr (std::is_floating_point<T>::value)
+		{
+			assert(!std::isnan(value) || "NaN value found");
+
+			// From https://github.com/naphaso/cbor-cpp/blob/master/src/encoder.cpp
+			const void *punny = &value;
+
+			for (size_t i = 0; i < sizeof(T); i++)
+			{
+				m_Buffer.push_back(*((uint8_t *)punny + i));
+			}
 		}
 
 		return *this;
 	}
 
-	template <typename T>
-	constexpr BorshEncoder &EncodeFloatingPoint(const T floatingPoint)
-	{
-		static_assert(std::is_floating_point<T>::value, "Floating point value only");
-
-		assert(!std::isnan(floatingPoint) || "NaN value found");
-
-		// From https://github.com/naphaso/cbor-cpp/blob/master/src/encoder.cpp
-		const void *punny = &floatingPoint;
-
-		for (size_t i = 0; i < sizeof(T); i++)
-		{
-			m_Buffer.push_back(*((uint8_t *)punny + i));
-		}
-
-		return *this;
-	}
-
-	BorshEncoder &EncodeString(const std::string &str)
+	BorshEncoder &Encode(const std::string &str)
 	{
 		// Write the size of the string as an u32 integer
-		EncodeInteger(static_cast<uint32_t>(str.size()));
+		Encode(static_cast<uint32_t>(str.size()));
 
 		m_Buffer.insert(m_Buffer.begin() + m_Buffer.size(), str.begin(), str.end());
 
 		return *this;
 	}
 
-	BorshEncoder &EncodeString(const char *str)
+	BorshEncoder &Encode(const char *str)
 	{
 		const uint32_t size = std::strlen(str);
 		// Write the size of the string as an u32 integer
-		EncodeInteger(size);
+		Encode(size);
 
 		auto bytes = reinterpret_cast<const uint8_t *>(str);
 
@@ -153,15 +159,25 @@ public:
 	}
 
 	template <typename T>
-	constexpr BorshEncoder &EncodeFixArray(const std::initializer_list<T> &initList)
+	constexpr BorshEncoder &Encode(const std::initializer_list<T> &initList)
 	{
-		return EncodeFixArray<T>(initList.begin(), initList.size());
+		return Encode(std::pair{initList.begin(), initList.size()});
 	}
 
-	template <typename T>
-	constexpr BorshEncoder &EncodeFixArray(const T *array, size_t size)
+	template <typename T, typename U>
+	constexpr BorshEncoder &Encode( const std::pair<T *, U> cArray)
 	{
-		if (std::is_array<T>::value)
+		return Encode(std::pair{(const T*)cArray.first, cArray.second});
+	}
+
+	template <typename T, typename U>
+	constexpr BorshEncoder &Encode( const std::pair<const T *, U> cArray)
+	{
+		auto [array, size] = cArray;
+
+		static_assert(std::is_integral<U>::value || (size > 0), "The size of the c array must be a unsigned integer value");
+
+		if constexpr (std::is_array<T>::value)
 		{
 			printf("Es array");
 		}
@@ -170,7 +186,7 @@ public:
 		{
 			for (size_t i = 0; i < size; ++i)
 			{
-				EncodeInteger(*array);
+				Encode(*array);
 				++array;
 			}
 		}
@@ -178,7 +194,7 @@ public:
 		{
 			for (size_t i = 0; i < size; ++i)
 			{
-				EncodeFloatingPoint(*array);
+				Encode(*array);
 				++array;
 			}
 		}
@@ -186,7 +202,7 @@ public:
 		{
 			for (size_t i = 0; i < size; ++i)
 			{
-				EncodeString(*array);
+				Encode(*array);
 				++array;
 			}
 		}
@@ -194,7 +210,7 @@ public:
 		{
 			for (size_t i = 0; i < size; ++i)
 			{
-				EncodeString(*array);
+				Encode(*array);
 				++array;
 			}
 		}
@@ -207,10 +223,10 @@ public:
 	}
 
 	template <typename T>
-	constexpr BorshEncoder &EncodeDynamicArray(const std::vector<T> &vector)
+	constexpr BorshEncoder &Encode(const std::vector<T> &vector)
 	{
-		EncodeInteger((uint32_t)vector.size());
-		EncodeFixArray(vector.data(), vector.size());
+		Encode((uint32_t)vector.size());
+		Encode(std::pair{vector.data(), vector.size()});
 
 		return *this;
 	}
@@ -227,5 +243,47 @@ private:
 class BorshDecoder
 {
 public:
+	template <typename ... Types>
+	std::tuple<Types...> Decode(const uint8_t *bufferBegin)
+	{
+		uint8_t *offset = (uint8_t *)bufferBegin;
+		// (DecodeInternal<Types>(f, &offset), ...);
+		assert(false || "BROKEN!!!!");
+		return std::make_tuple(DecodeInternal<Types>(&offset)...);
+	}
+
 private:
+	template <typename T>
+	T DecodeInternal(uint8_t **offset)
+	{
+		if constexpr (std::is_integral<T>::value || std::is_floating_point<T>::value)
+		{
+			T data = *((T *)*(offset));
+
+			(*offset) += sizeof(T);
+
+			return data;
+			// f(std::move(data));
+		}
+		else if constexpr (BorshCppInternals::is_string<T>::value)
+		{
+			uint32_t strSize = *((uint32_t *)*(offset));
+			std::cout << typeid(T).name() << "\n";
+			(*offset) += 4;
+
+			auto data = std::string((*offset), ((*offset) + strSize));
+
+			(*offset) += strSize;
+
+			return data;
+			// f(std::move(data));
+		}
+		else
+		{
+			assert(false || "The type of the array is not supported");
+		}
+	}
+
+private:
+	std::vector<uint8_t> m_Buffer;
 };
