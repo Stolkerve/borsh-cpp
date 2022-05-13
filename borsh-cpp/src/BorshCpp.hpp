@@ -244,12 +244,13 @@ class BorshDecoder
 {
 public:
 	template <typename ... Types>
-	std::tuple<Types...> Decode(const uint8_t *bufferBegin)
+	auto Decode(const uint8_t *bufferBegin, size_t size)
 	{
 		uint8_t *offset = (uint8_t *)bufferBegin;
 		// (DecodeInternal<Types>(f, &offset), ...);
-		assert(false || "BROKEN!!!!");
-		return std::make_tuple(DecodeInternal<Types>(&offset)...);
+		// assert(false || "BROKEN!!!!");
+		// std::forward_as_tuple<Types>(DecodeInternal<Types>(&offset))...;
+		(DecodeInternal<Types>(&offset), ...);
 	}
 
 private:
@@ -259,7 +260,6 @@ private:
 		if constexpr (std::is_integral<T>::value || std::is_floating_point<T>::value)
 		{
 			T data = *((T *)*(offset));
-
 			(*offset) += sizeof(T);
 
 			return data;
@@ -268,7 +268,6 @@ private:
 		else if constexpr (BorshCppInternals::is_string<T>::value)
 		{
 			uint32_t strSize = *((uint32_t *)*(offset));
-			std::cout << typeid(T).name() << "\n";
 			(*offset) += 4;
 
 			auto data = std::string((*offset), ((*offset) + strSize));
@@ -283,7 +282,4 @@ private:
 			assert(false || "The type of the array is not supported");
 		}
 	}
-
-private:
-	std::vector<uint8_t> m_Buffer;
 };

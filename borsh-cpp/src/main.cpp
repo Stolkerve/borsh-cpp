@@ -49,4 +49,17 @@ int main()
 	}
 	printf("\n");
 
+	auto buffer = encoder.GetBuffer();
+	BorshDecoder decoder;
+	/*auto[a, b, c, d, f, g, h] = */decoder.Decode<
+		uint8_t,
+		uint16_t,
+		uint32_t,
+		float,
+		double,
+		bool,
+		std::string
+	>(buffer.data(), buffer.size());
+
+	// std::cout << a << " " << b << " " << c << " " << d  << " " << f << " " << g << " " << h << "\n";
 }
