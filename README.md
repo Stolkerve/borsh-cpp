@@ -20,28 +20,75 @@ int main()
 	bool cArray[2] = {true, false};
 	auto initList = {"1", "2"};
 
+	std::vector<uint8_t> dynamicArray = {
+		34,
+		85,
+		255
+	};
+
 	BorshEncoder encoder;
 	encoder
-		.Encode(std::pair{cArray, 2})
-		.Encode(initList)
-		.Encode(true, false)
 		.Encode(
-			(uint8_t)0xff
+			/* Integers */
+			(uint8_t)0xff,
 			(uint16_t)0xffff,
-			(uint32_t)0xfffffff,
-			(uint64_t)0xffffffffffffffff,
-			(int8_t)0x7d,
-			(int16_t)0x7fff,
-			(int32_t)0x7ffffff,
-			(int64_t)0x7fffffffffffffff
-		)
-		.Encode("Hola mundo!!!") // suppport ascii
-		.Encode(u8"Hola mundo!!!🤓"); // and utf8 only as literals!!!!!
+			(uint32_t)0xffffffff,
+			
+			/* Floats */
+			230.121312f,
+			230.121312,
+
+			/* Bools */
+			true,
+
+			/* Strings */
+			"Hola mundo!!!", // suppport ascii
+			u8"Hola mundo!!!🤓", // and utf8 only as literals!!!!!
+
+			/* C Array */
+			std::pair{cArray, 2},
+
+			/* Initializer List */
+			initList,
+
+			/* Vectors */
+			dynamicArray
+		);
 
 	for (auto c : encoder.GetBuffer())
 	{
 		printf("%d ", c);
 	}
+	printf("\n");
+
+	auto buffer = encoder.GetBuffer();
+	BorshDecoder decoder;
+
+	// hold the decoded data
+	uint8_t uInt8{};
+	uint16_t uInt16{};
+	uint32_t uInt32{};
+	float f32{};
+	double f64{};
+	bool b{};
+	std::string str{};
+	std::string u8Str{};
+
+	decoder.Decode(
+		buffer.data(),
+		uInt8, uInt16, uInt32, f32, f64, b, str, u8Str
+	);
+
+	std::cout << 
+		(uint32_t)uInt8 << " " <<
+		uInt16 << " " <<
+		uInt32 << " " <<
+		f32 << " " <<
+		f64 << " " <<
+		b << " " <<
+		str << " " <<
+		u8Str << " " <<
+		"\n";
 }
 ```
 
@@ -75,4 +122,4 @@ int main()
 
 
 ## Limitations
-For now only support serialization and not map data from classes or structs
+For now only support serialization for all previus types, but for decode only a few for now

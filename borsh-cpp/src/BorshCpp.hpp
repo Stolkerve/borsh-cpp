@@ -244,38 +244,32 @@ class BorshDecoder
 {
 public:
 	template <typename ... Types>
-	auto Decode(const uint8_t *bufferBegin, size_t size)
+	void Decode(const uint8_t *bufferBegin, Types& ... retriveValues)
 	{
 		uint8_t *offset = (uint8_t *)bufferBegin;
-		// (DecodeInternal<Types>(f, &offset), ...);
-		// assert(false || "BROKEN!!!!");
-		// std::forward_as_tuple<Types>(DecodeInternal<Types>(&offset))...;
-		(DecodeInternal<Types>(&offset), ...);
+
+		// DecodeInternal(&offset, retriveValues...);
+		(DecodeInternal<Types>(&offset, retriveValues), ...);
 	}
 
 private:
 	template <typename T>
-	T DecodeInternal(uint8_t **offset)
+	void DecodeInternal(uint8_t **offset, T& value)
 	{
 		if constexpr (std::is_integral<T>::value || std::is_floating_point<T>::value)
 		{
-			T data = *((T *)*(offset));
+			// std::cout << typeid(T).name() << '\n';
+			value = *((T *)*(offset));
 			(*offset) += sizeof(T);
-
-			return data;
-			// f(std::move(data));
 		}
 		else if constexpr (BorshCppInternals::is_string<T>::value)
 		{
 			uint32_t strSize = *((uint32_t *)*(offset));
 			(*offset) += 4;
 
-			auto data = std::string((*offset), ((*offset) + strSize));
+			value = std::string((*offset), ((*offset) + strSize));
 
 			(*offset) += strSize;
-
-			return data;
-			// f(std::move(data));
 		}
 		else
 		{

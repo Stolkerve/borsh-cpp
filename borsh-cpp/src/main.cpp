@@ -51,15 +51,30 @@ int main()
 
 	auto buffer = encoder.GetBuffer();
 	BorshDecoder decoder;
-	/*auto[a, b, c, d, f, g, h] = */decoder.Decode<
-		uint8_t,
-		uint16_t,
-		uint32_t,
-		float,
-		double,
-		bool,
-		std::string
-	>(buffer.data(), buffer.size());
 
-	// std::cout << a << " " << b << " " << c << " " << d  << " " << f << " " << g << " " << h << "\n";
+	// hold the decoded data
+	uint8_t uInt8{};
+	uint16_t uInt16{};
+	uint32_t uInt32{};
+	float f32{};
+	double f64{};
+	bool b{};
+	std::string str{};
+	std::string u8Str{};
+
+	decoder.Decode(
+		buffer.data(),
+		uInt8, uInt16, uInt32, f32, f64, b, str, u8Str
+	);
+
+	std::cout << 
+		(uint32_t)uInt8 << " " <<
+		uInt16 << " " <<
+		uInt32 << " " <<
+		f32 << " " <<
+		f64 << " " <<
+		b << " " <<
+		str << " " <<
+		u8Str << " " <<
+		"\n";
 }
