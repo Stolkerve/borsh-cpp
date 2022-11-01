@@ -122,4 +122,4 @@ int main()
 
 
 ## Limitations
-For now only support serialization for all previus types, but for decode only a few for now
+For now only support serialization for all previous types, but for decode only a few for now
